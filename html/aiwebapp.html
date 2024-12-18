@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordle Clone</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #121212;
+            color: #fff;
+        }
+
+        .game-container {
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 50px);
+            gap: 10px;
+            justify-content: center;
+            margin: 20px auto;
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5em;
+            text-transform: uppercase;
+            background-color: #222;
+            color: white;
+            box-sizing: border-box;
+            text-align: center;
+            line-height: 50px;
+        }
+
+        .cell[contenteditable="true"] {
+            outline: none;
+            cursor: text;
+        }
+
+        .correct {
+            background-color: #6aaa64;
+        }
+
+        .present {
+            background-color: #c9b458;
+        }
+
+        .absent {
+            background-color: #3a3a3c;
+        }
+
+        button {
+            margin-top: 10px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 1em;
+            padding: 0 10px;
+            background-color: #6aaa64;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #5a9952;
+        }
+
+        #message {
+            margin-top: 10px;
+            font-size: 1.2em;
+        }
+
+        #play-again {
+            display: none; /* Hidden until game ends */
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Kye's Wordle Clone</h1>
+        <div class="grid" id="grid"></div>
+        <button onclick="submitGuess()">Submit Guess</button>
+        <button id="play-again" onclick="resetGame()">Play Again</button>
+        <p id="message"></p>
+    </div>
+
+    <script>
+        const MAX_GUESSES = 6;
+        const grid = document.getElementById("grid");
+        const message = document.getElementById("message");
+        const playAgainButton = document.getElementById("play-again");
+
+        let WORD = getRandomWord(); // Generate random word immediately
+        let currentRow = 0;
+
+        // Initialize the grid
+        function createGrid() {
+            grid.innerHTML = ""; // Clear grid on reset
+            for (let row = 0; row < MAX_GUESSES; row++) {
+                for (let col = 0; col < 5; col++) {
+                    const cell = document.createElement("div");
+                    cell.classList.add("cell");
+                    cell.setAttribute("id", `cell-${row}-${col}`);
+                    cell.setAttribute("contenteditable", row === 0 ? "true" : "false");
+                    cell.addEventListener("input", handleInput);
+                    cell.addEventListener("keydown", handleKeydown);
+                    grid.appendChild(cell);
+                }
+            }
+            document.getElementById(`cell-0-0`).focus();
+        }
+
+        // Handle input: move to the next box
+        function handleInput(e) {
+            const cell = e.target;
+            const value = cell.textContent.trim().toUpperCase();
+            cell.textContent = value.charAt(0); // Restrict to one letter
+            const [row, col] = cell.id.split("-").slice(1).map(Number);
+            if (value && col < 4) {
+                document.getElementById(`cell-${row}-${col + 1}`).focus();
+            }
+        }
+
+        // Handle keydown: backspace or submit on Enter
+        function handleKeydown(e) {
+            const cell = e.target;
+            const [row, col] = cell.id.split("-").slice(1).map(Number);
+
+            if (e.key === "Backspace") {
+                handleBackspace(cell, row, col);
+                e.preventDefault();
+            } else if (e.key === "Enter") {
+                submitGuess();
+                e.preventDefault();
+            }
+        }
+
+        // Handle backspace: delete previous letter and move focus
+        function handleBackspace(cell, row, col) {
+            if (cell.textContent) {
+                cell.textContent = ""; // Clear current cell
+            } else if (col > 0) {
+                const prevCell = document.getElementById(`cell-${row}-${col - 1}`);
+                prevCell.textContent = ""; // Clear previous cell
+                prevCell.focus();
+            }
+        }
+
+        // Submit the guess
+        function submitGuess() {
+            let guess = "";
+            for (let i = 0; i < 5; i++) {
+                const cell = document.getElementById(`cell-${currentRow}-${i}`);
+                const letter = cell.textContent.trim().toUpperCase();
+                if (!letter || letter.length > 1) {
+                    message.textContent = "Each box must contain exactly one letter.";
+                    return;
+                }
+                guess += letter;
+            }
+
+            for (let i = 0; i < 5; i++) {
+                const cell = document.getElementById(`cell-${currentRow}-${i}`);
+                if (guess[i] === WORD[i]) {
+                    cell.classList.add("correct");
+                } else if (WORD.includes(guess[i])) {
+                    cell.classList.add("present");
+                } else {
+                    cell.classList.add("absent");
+                }
+                cell.removeAttribute("contenteditable");
+            }
+
+            if (guess === WORD) {
+                message.textContent = "Congratulations! You guessed the word!";
+                playAgainButton.style.display = "inline-block";
+                return;
+            }
+
+            currentRow++;
+            if (currentRow >= MAX_GUESSES) {
+                message.textContent = `Game over! The word was "${WORD}".`;
+                playAgainButton.style.display = "inline-block";
+            } else {
+                enableNextRow();
+            }
+        }
+
+        // Enable editing for the next row
+        function enableNextRow() {
+            for (let i = 0; i < 5; i++) {
+                const nextCell = document.getElementById(`cell-${currentRow}-${i}`);
+                nextCell.setAttribute("contenteditable", "true");
+            }
+            document.getElementById(`cell-${currentRow}-0`).focus();
+        }
+
+        // Reset the game
+        function resetGame() {
+            currentRow = 0;
+            message.textContent = "";
+            playAgainButton.style.display = "none";
+            WORD = getRandomWord();
+            createGrid();
+        }
+
+        // Generate a random word
+        function getRandomWord() {
+            const words = [
+                "GRAPE", "PLUMB", "BRAVE", "CRANE", "PLANT", "HOUSE", "WATER", "BREAD", 
+                "CHAIR", "TABLE", "LIGHT", "MOUSE", "BRAIN", "SMILE", "CLOUD", "STORM", 
+                "RIVER", "MUSIC", "STONE", "PEARL", "EARTH", "FLAME", "CROWN", "FROST", 
+                "GLASS", "SHINE", "LEMON", "ANGEL", "BLOOM"
+            ]; 
+            return words[Math.floor(Math.random() * words.length)];
+        }
+
+        createGrid(); // Initialize grid on page load
+    </script>
+</body>
+</html>
